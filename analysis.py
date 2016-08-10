@@ -102,13 +102,24 @@ df['date_diff'] = (df['date_y'] - df['date_x']).dt.days
 test_set = df[df.outcome == -1]
 
 df = df[df.outcome != -1]
-train_outcomes = df["outcome"].values
-df = df.drop('outcome',1)
 
-train_df,validate_df,train_target,validate_target = cross_validation.train_test_split(df,train_outcomes,test_size=0.5,random_state = 0)
+##select people_id to be in training set and validate set
+np.random.seed(100)
+people_ids = df['people_id'].unique()
+
+people_ids_train = np.random.choice(people_ids,size = (int)(len(people_ids) * 0.5 ),replace = False)
+
+train_df = df[df['people_id'].isin( people_ids_train )]
+validate_df = df[~(df['people_id'].isin( people_ids_train ))]
 
 del df
 gc.collect()
+
+train_target = train_df['outcome']
+train_df = train_df.drop('outcome',1)
+
+validate_target = validate_df['outcome']
+validate_df = validate_df.drop('outcome',1)
 
 train_df = train_df.drop(['people_id','date_x','activity_id','date_y' ],1)
 validate_df = validate_df.drop(['people_id','date_x','activity_id','date_y' ],1)
@@ -146,7 +157,6 @@ xgb_model.load_model("xgb.model")
 test_set = test_set.drop('outcome',1)
 dtest = xgb.DMatrix(test_set.drop(['people_id','date_x','activity_id','date_y' ],1).as_matrix())
 predictions = xgb_model.predict(dtest)
-predictions = [0 if x<0.5 else 1 for x in predictions]
 test_set['outcome'] = predictions
 
 #save to submit file
